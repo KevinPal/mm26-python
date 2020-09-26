@@ -46,13 +46,21 @@ class Strategy:
 
         weapon = self.my_player.get_weapon()
         enemies = self.api.find_enemies(self.curr_pos)
-        if enemies is None or len(enemies) > 0:
-            self.memory.set_value("last_action", "MOVE")
-            return CharacterDecision(
-                decision_type="MOVE",
-                action_position=self.my_player.get_spawn_point(),
-                action_index=None
-            )
+
+        # if no enemies, sprint to portal
+        if enemies is None or len(enemies) == 0:
+            portal = self.api.find_closest_portal(self.curr_pos)
+
+            if portal == self.curr_pos:
+                return CharacterDecision(
+                    decision_type="PORTAL"
+                )
+            else:
+                return CharacterDecision(
+                    decision_type="MOVE",
+                    action_position=self.api.find_closest_portal(self.curr_pos)
+                    action_index=None
+                )
 
         enemy_pos = enemies[0].get_position()
         if self.curr_pos.manhattan_distance(enemy_pos) <= weapon.get_range():
@@ -62,14 +70,13 @@ class Strategy:
                 action_position=enemy_pos,
                 action_index=None
             )
-
-        self.memory.set_value("last_action", "MOVE")
-        decision = CharacterDecision(
-            decision_type="MOVE",
-            action_position=find_position_to_move(self.my_player, enemy_pos),
-            action_index=None
-        )
-        return decision
+        else:
+            self.memory.set_value("last_action", "MOVE")
+            return CharacterDecision(
+                decision_type="MOVE",
+                action_position=find_position_to_move(self.my_player, enemy_pos),
+                action_index=None
+            )
 
 
     # feel free to write as many helper functions as you need!
