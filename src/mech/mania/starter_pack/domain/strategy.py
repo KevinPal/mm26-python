@@ -27,7 +27,6 @@ class Strategy:
         self.game_state = game_state
 
         self.logger.info("In make_decision")
-
         self.logger.info(f"Currently at position: ({self.curr_pos.x},{self.curr_pos.y}) on board '{self.curr_pos.board_id}'")
 
         monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
@@ -36,6 +35,21 @@ class Strategy:
         self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
 
         decision = None
+
+        try:
+            portals = self.game_state.get_board(self.curr_pos.get_board_id()).get_portals()
+            self.logger.warn(str(portals))
+            self.logger.warn(len(portals))
+        except Exception as e:
+            self.logger.warn(str(e))
+
+        try:
+            grid = self.game_state.get_board(self.curr_pos.get_board_id()).grid
+            all_items = ", ".join([ ", ".join([str(type(item)) for item in tile.get_items()]) for row in grid for tile in row ])
+            self.logger.warn(all_items)
+        except Exception as e:
+            self.logger.warn(str(e))
+        #self.logger.warn(f"items in range: {self.find_positions_with_items_in_range(self.curr_pos, 10)}")
 
         weapon = self.my_player.get_weapon()
         self.logger.warn("Weapon range: %d, attack %d" % (weapon.get_range(), weapon.get_attack()))
@@ -57,6 +71,18 @@ class Strategy:
             self.logger.warn("Attacking %s" % close_mon.get_name())
 
         return decision
+
+    def find_positions_with_items_in_range(self, pos, ran):
+        positions = []
+        for i in range(-ran, ran+1):
+            for j in range(-ran, ran+1):
+                position = pos.create(pos.get_x() + i, pos.get_y() + j, pos.get_board_id())
+                self.logger.warn(f"checking position for items: {position.get_x()}, {position.get_y()}")
+                self.logger.warn(self.game_state.get_board(pos.get_board_id()).grid[position.y][position.x])
+
+                if len(self.game_state.get_board(pos.get_board_id()).get_tile_at(position).get_items()) > 0:
+                    positions.append(position)
+        return positions
 
     def create_move_decision(self, dx, dy):
         new_pos = self.curr_pos.create(self.curr_pos.x + dx, self.curr_pos.y + dy, self.curr_pos.get_board_id())
