@@ -24,63 +24,74 @@ class Strategy:
         self.my_player = game_state.get_all_players()[player_name]
         self.board = game_state.get_pvp_board()
         self.curr_pos = self.my_player.get_position()
+        self.game_state = game_state
 
         self.logger.info("In make_decision")
 
         self.logger.info(f"Currently at position: ({self.curr_pos.x},{self.curr_pos.y}) on board '{self.curr_pos.board_id}'")
 
-        last_action, type = self.memory.get_value("last_action", str)
-        self.logger.info(f"last_action: '{last_action}'")
+        monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
+        close_mon = monster_list[0]
+        dist = self.curr_pos.manhattan_distance(close_mon.get_position())
+        self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
 
-        if last_action is not None and last_action == "PICKUP":
-            self.logger.info("Last action was picking up, equipping picked up object")
-            self.memory.set_value("last_action", "EQUIP")
-            return CharacterDecision(
-                decision_type="EQUIP",
-                action_position=None,
-                action_index=0  # self.my_player.get_free_inventory_index()
-            )
-
-        tile_items = self.board.get_tile_at(self.curr_pos).get_items()
-        if tile_items is not None and len(tile_items) > 0:
-            self.logger.info("There are items on my tile, picking up item")
-            self.memory.set_value("last_action", "PICKUP")
-            return CharacterDecision(
-                decision_type="PICKUP",
-                action_position=None,
-                action_index=0
-            )
+        decision = None
 
         weapon = self.my_player.get_weapon()
-        enemies = self.api.find_enemies_by_distance(self.curr_pos)
-        if enemies is None or len(enemies) == 0:
-            self.logger.info("There is no enemies in range, moving to spawn point")
-            self.memory.set_value("last_action", "MOVE")
-            return CharacterDecision(
+        self.logger.warn("Weapon range: %d, attack %d" % (weapon.get_range(), weapon.get_attack()))
+
+        if(dist > weapon.get_range()):
+            new_pos = self.crappy_find_position_to_move(self.my_player, close_mon.get_position())
+            decision = CharacterDecision(
                 decision_type="MOVE",
-                action_position=self.my_player.get_spawn_point(),
-                action_index=None
+                action_position=new_pos,
+                action_index=0
             )
-
-        enemy_pos = enemies[0].get_position()
-        if self.curr_pos.manhattan_distance(enemy_pos) <= weapon.get_range():
-            self.logger.info("There is an enemy within weapon range, attacking")
-            self.memory.set_value("last_action", "ATTACK")
-            return CharacterDecision(
+            self.logger.warn("Moving from (%d %d) => (%d %d)" % (self.curr_pos.x, self.curr_pos.y, new_pos.x, new_pos.y))
+        else:
+            decision = CharacterDecision(
                 decision_type="ATTACK",
-                action_position=enemy_pos,
-                action_index=None
+                action_position=close_mon.get_position(),
+                action_index=0
             )
+            self.logger.warn("Attacking %s" % close_mon.get_name())
 
-        self.memory.set_value("last_action", "MOVE")
-        self.logger.info("Moving towards the nearest enemy")
+        return decision
+
+    def create_move_decision(self, dx, dy):
+        new_pos = self.curr_pos.create(self.curr_pos.x + dx, self.curr_pos.y + dy, self.curr_pos.get_board_id())
         decision = CharacterDecision(
             decision_type="MOVE",
-            action_position=self.find_position_to_move(self.my_player, enemy_pos),
-            action_index=None
+            action_position=new_pos,
+            action_index=0
         )
         return decision
 
+    def crappy_find_enemies_by_distance(self, pos, name_filter=""):
+        curr_board = self.curr_pos.get_board_id()
+        monsters = self.game_state.get_monsters_on_board(curr_board)
+        distances = [mon for mon in monsters if not mon.is_dead() and name_filter in mon.get_name().lower()]
+
+        distances.sort(key=lambda mon: pos.manhattan_distance(mon.get_position()))
+        return distances
+
+    def crappy_find_position_to_move(self, player, destination) -> Position:
+        x_dist = destination.x - player.get_position().x
+        y_dist = destination.y - player.get_position().y
+
+        dx = 0
+        dy = 0
+
+        if abs(x_dist) > abs(y_dist):
+            if x_dist != 0:
+                dx = int(abs(x_dist) / x_dist)
+        else:
+            if y_dist != 0:
+                dy = int(abs(y_dist) / y_dist)
+
+        new_pos = self.curr_pos.create(player.get_position().x + dx, player.get_position().y + dy, self.curr_pos.get_board_id())
+
+        return new_pos
 
     # feel free to write as many helper functions as you need!
     def find_position_to_move(self, player: Player, destination: Position) -> Position:
