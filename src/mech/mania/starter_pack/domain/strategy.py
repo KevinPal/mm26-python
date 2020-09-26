@@ -26,65 +26,20 @@ class Strategy:
 
         self.logger.info("In make_decision")
 
-        #last_action, type = self.memory.get_value("last_action", str)
-        #if last_action is not None and last_action == "PICKUP":
-        #    self.logger.info("EQUIP")
-        #    self.memory.set_value("last_action", "EQUIP")
-        #    return CharacterDecision(
-        #        decision_type="EQUIP",
-        #        action_position=None,
-        #        action_index=self.my_player.get_free_inventory_index()
-        #    )
+        portal = self.api.find_closest_portal(self.curr_pos)
 
-        #tile_items = self.board.get_tile_at(self.curr_pos).items
-        #if tile_items is not None or len(tile_items) > 0:
-        #    self.logger.info("PICKUP")
-        #    self.memory.set_value("last_action", "PICKUP")
-        #    return CharacterDecision(
-        #        decision_type="PICKUP",
-        #        action_position=None,
-        #        action_index=0
-        #    )
-
-        weapon = self.my_player.get_weapon()
-        enemies = self.api.find_enemies_by_distance(self.curr_pos)
-
-        # if no enemies, sprint to portal
-        if enemies is None or len(enemies) == 0:
-            self.logger.info("There are no enemies")
-            portal = self.api.find_closest_portal(self.curr_pos)
-
-            if portal == self.curr_pos:
-                self.logger.info("AT PORTAL. TRAVELING")
-                return CharacterDecision(
-                    decision_type="PORTAL"
-                )
-            else:
-                self.logger.info("SPRINTING TO PORTAL")
-                return CharacterDecision(
-                    decision_type="MOVE",
-                    action_position=find_position_to_move(self.curr_pos, self.api.find_closest_portal(self.curr_pos)),
-                    action_index=None
-                )
-        self.logger.info("There are enemies")
-        enemy_pos = enemies[0].get_position()
-        if self.curr_pos.manhattan_distance(enemy_pos) <= weapon.get_range():
-            self.logger.info("Hit enemy.")
-            self.memory.set_value("last_action", "ATTACK")
+        if portal == self.curr_pos:
+            self.logger.info("AT PORTAL. TRAVELING")
             return CharacterDecision(
-                decision_type="ATTACK",
-                action_position=enemy_pos,
-                action_index=None
+                decision_type="PORTAL"
             )
         else:
-            self.logger.info("run to enemy.")
-            self.memory.set_value("last_action", "MOVE")
+            self.logger.info("SPRINTING TO PORTAL")
             return CharacterDecision(
                 decision_type="MOVE",
-                action_position=find_position_to_move(self.my_player, enemy_pos),
+                action_position=find_position_to_move(self.curr_pos, self.api.find_closest_portal(self.curr_pos)),
                 action_index=None
-            )
-
+ e           )
 
     # feel free to write as many helper functions as you need!
     def find_position_to_move(self, player: Position, destination: Position) -> Position:
