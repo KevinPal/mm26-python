@@ -49,16 +49,19 @@ class Strategy:
 
         # if no enemies, sprint to portal
         if enemies is None or len(enemies) == 0:
+            self.logger.info("There are no enemies")
             portal = self.api.find_closest_portal(self.curr_pos)
 
             if portal == self.curr_pos:
+                self.logger.info("AT PORTAL. TRAVELING")
                 return CharacterDecision(
                     decision_type="PORTAL"
                 )
             else:
+                self.logger.info("SPRINTING TO PORTAL")
                 return CharacterDecision(
                     decision_type="MOVE",
-                    action_position=self.api.find_closest_portal(self.curr_pos)
+                    action_position=find_position_to_move(self.curr_pos, self.api.find_closest_portal(self.curr_pos)),
                     action_index=None
                 )
 
