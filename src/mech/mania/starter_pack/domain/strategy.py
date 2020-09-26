@@ -47,7 +47,7 @@ class Strategy:
         #    )
 
         weapon = self.my_player.get_weapon()
-        enemies = self.api.find_enemies(self.curr_pos)
+        enemies = self.api.find_enemies_by_distance(self.curr_pos)
 
         # if no enemies, sprint to portal
         if enemies is None or len(enemies) == 0:
