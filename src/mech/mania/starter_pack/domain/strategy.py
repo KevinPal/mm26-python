@@ -6,6 +6,11 @@ from mech.mania.starter_pack.domain.model.characters.player import Player
 from mech.mania.starter_pack.domain.model.game_state import GameState
 from mech.mania.starter_pack.domain.api import API
 
+from mech.mania.starter_pack.domain.model.items.accessory import Accessory
+from mech.mania.starter_pack.domain.model.items.clothes import Clothes
+from mech.mania.starter_pack.domain.model.items.consumable import Consumable
+from mech.mania.starter_pack.domain.model.items.hat import Hat
+from mech.mania.starter_pack.domain.model.items.shoes import shoes
 from mech.mania.starter_pack.domain.model.items.weapon import Weapon
 from mech.mania.starter_pack.domain.model.items.accessory import Accessory
 from mech.mania.starter_pack.domain.model.items.clothes import Clothes
@@ -94,7 +99,7 @@ class Strategy:
         for pos in pos_with_items:
             items = self.game_state.get_board(self.curr_pos.get_board_id()).get_tile_at(pos).get_items()
             for tile_item_index, item in enumerate(items):
-                self.logger.info(f"I can seee an item {item}")
+                self.logger.info(f"I can seee an item {self.print_item(item)}")
                 if isinstance(item, Weapon):
                     if item.get_attack() > weapon.get_attack():
                         return self.move_pickup(
@@ -259,3 +264,44 @@ class Strategy:
             self.logger.warn(str(e))
             self.logger.warn("find position failed, defaulting to crappy find_position")
             return self.crappy_find_position_to_move(player, destination)
+
+    def print_item(self, item):
+        try:
+            if isinstance(item, Weapon):
+                return f"""
+                    Weapon:
+                    range:         {item.get_range()}
+                    splash_radius: {item.get_splash_radius()}
+                    on_hit_effect: {item.get_on_hit_effect()}
+                    attack:        {item.get_attack()}
+                """
+            elif isinstance(item, Accessory):
+                return f"""
+                    Accessory:
+                    magical_effect: {item.get_magic_effect()}
+                """
+            elif isinstance(item, Clothes):
+                return f"""
+                    Clothes:
+                    stats: {item.get_stats()}
+                """
+            elif isinstance(item, Shoes):
+                return f"""
+                    Shoes:
+                    stats: {item.get_stats()}
+                """
+            elif isinstance(item, Consumable):
+                return f"""
+                    Consumable:
+                    stacks:  {item.get_stacks()}
+                    effects: {item.get_effects()}
+                """
+            elif isinstance(item, Hat):
+                return f"""
+                    Hat:
+                    magical_hat_effects: {item.magic_hat_effect()}:
+                    stats:               {item.get_stats()}
+                """
+        except Exception as e:
+            self.logger.warn(str(e))
+            return str(item)
