@@ -421,6 +421,7 @@ class Strategy:
                 return f"""
                     Accessory:
                     magical_effect: {Accessory.magic_effect_types[item.get_magic_effect()]}
+                    stats: {item.get_stats().__dict__}
                 """
             elif isinstance(item, Clothes):
                 return f"""
