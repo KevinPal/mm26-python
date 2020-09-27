@@ -29,7 +29,7 @@ class Strategy:
         """
         self.api = API(game_state, player_name)
         self.my_player = game_state.get_all_players()[player_name]
-        self.board = game_state.get_pvp_board()
+        #self.board = game_state.get_pvp_board()
         self.curr_pos = self.my_player.get_position()
         self.game_state = game_state
 
