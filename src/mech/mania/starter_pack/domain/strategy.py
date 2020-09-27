@@ -7,6 +7,10 @@ from mech.mania.starter_pack.domain.model.game_state import GameState
 from mech.mania.starter_pack.domain.api import API
 
 from mech.mania.starter_pack.domain.model.items.weapon import Weapon
+from mech.mania.starter_pack.domain.model.items.accessory import Accessory
+from mech.mania.starter_pack.domain.model.items.clothes import Clothes
+from mech.mania.starter_pack.domain.model.items.hat import Hat
+from mech.mania.starter_pack.domain.model.items.shoes import Shoes
 
 
 class Strategy:
@@ -93,23 +97,106 @@ class Strategy:
                 self.logger.info(f"I can seee an item {item}")
                 if isinstance(item, Weapon):
                     if item.get_attack() > weapon.get_attack():
-                        if pos.get_x() == self.curr_pos.get_x() and pos.get_y() == self.curr_pos.get_y():
-                            self.logger.info(f"Standing on weapon with attack {item.get_attack()}, picking up")
-                            self.memory.set_value("last_action", "PICKUP")
-                            return CharacterDecision(
-                                decision_type="PICKUP",
-                                action_position=None,
-                                action_index=tile_item_index
+                        return self.move_pickup(
+                            pos,
+                            tile_item_index,
+                            f"Found weapon with attack {item.get_attack}",
+                            f"Standing on weapon with attack {item.get_attack()}, picking up"
+                        )
+                else:
+                    try:
+                        my_obj = None
+
+                        if isinstance(item, Hat):
+                            my_obj = self.my_player.get_hat()
+                        elif isinstance(item, Accessory):
+                            my_obj = self.my_player.get_accessory()
+                        elif isinstance(item, Clothes):
+                            my_obj = self.my_player.get_clothes()
+                        elif isinstance(item, Shoes):
+                            my_obj = self.my_player.get_shoes()
+
+                        if my_obj is None:
+                            self.logger.warn(f"Item was unknown type: {str(type(item))}")
+                            return None
+                    except Exception as e:
+                        self.logger.warn(f"Error in parsing item type: {str(e)}")
+                        return None
+
+                    try:
+                        # List of stats to care about in order
+                        functions = ["get_flat_experience_change",
+                                     "get_percent_experience_change",
+                                     "get_flat_attack_change",
+                                     "get_percent_attack_change",
+                                     "get_flat_speed_change",
+                                     "get_percent_speed_change",
+                                     "get_flat_health_change",
+                                     "get_percent_health_change",
+                                     "get_flat_defense_change",
+                                     "get_percent_defense_change",
+                                     "get_flat_regen_per_turn"]
+
+                        should_take = None
+                        working_func = ""
+                        for foo in functions:
+                            # Check if we care about our thing more
+                            try:
+                                my_func = getattr(my_obj.get_stats(), foo)
+                                other_func = getattr(item.get_stats(), foo)
+                            except Exception as e:
+                                if foo in str(e):
+                                    self.logger.warn(f"Skipping due to no {foo}")
+                                    continue
+                                else:
+                                    raise e
+
+                            # Ours is better, dont take
+                            if (my_func() > other_func()):
+                                should_take = False
+                                self.logger.warn(f"Rejecting due to worse {foo}")
+                                break
+                            elif (my_func() == other_func()):
+                                # Same stat, keep checking
+                                continue
+                            else:
+                                # This is better, take it
+                                should_take = True
+                                working_func = foo
+                                break
+
+                        if should_take:
+                            return self.move_pickup(
+                                pos,
+                                tile_item_index,
+                                f"Found {str(type(item))}, picking due to {working_func}",
+                                f"Picking up {str(type(item))}, picking due to {working_func}"
                             )
-                        else:
-                            self.logger.info(f"Found weapon with attack {item.get_attack()}, approaching")
-                            self.memory.set_value("last_action", "MOVE")
-                            return CharacterDecision(
-                                decision_type="MOVE",
-                                action_position=self.find_position_to_move(self.my_player, pos),
-                                action_index=0
-                            )
+                    except Exception as e:
+                        self.logger.warn(f"Error in comparing items: {str(e)}")
+                        return None
         return None
+
+    def move_pickup(self, pos, tile_item_index, approach_log="", pick_log=""):
+        if pos.get_x() == self.curr_pos.get_x() and pos.get_y() == self.curr_pos.get_y():
+            # self.logger.info()
+            self.logger.info(pick_log)
+            self.memory.set_value("last_action", "PICKUP")
+            return CharacterDecision(
+                decision_type="PICKUP",
+                action_position=None,
+                action_index=tile_item_index
+            )
+        else:
+            # self.logger.info()}, approaching")
+            self.logger.info(approach_log)
+            self.memory.set_value("last_action", "MOVE")
+            return CharacterDecision(
+                decision_type="MOVE",
+                action_position=self.find_position_to_move(self.my_player, pos),
+                action_index=0
+            )
+
 
     def find_positions_with_items_in_range(self, pos, ran):
         positions = []
