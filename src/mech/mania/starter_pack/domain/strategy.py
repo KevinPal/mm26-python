@@ -35,6 +35,16 @@ class Strategy:
 
         self.logger.info("In make_decision")
         self.logger.info(f"Currently at position: ({self.curr_pos.x},{self.curr_pos.y}) on board '{self.curr_pos.board_id}'")
+        self.logger.info(f"Max Health: {self.my_player.get_max_health()}")
+
+        try:
+            self.logger.info(f" I am wearing ")
+            self.logger.info(f"my hat is {self.print_item(self.my_player.get_hat())}")
+            self.logger.info(f"my asc is {self.print_item(self.my_player.get_accessory())}")
+            self.logger.info(f"my clo is {self.print_item(self.my_player.get_clothes())}")
+            self.logger.info(f"my sho is {self.print_item(self.my_player.get_shoes())}")
+        except Exception as e:
+            self.logger.warn(str(e))
 
         last_action, type = self.memory.get_value("last_action", str)
         try:
@@ -293,7 +303,7 @@ class Strategy:
                     Weapon:
                     range:         {item.get_range()}
                     splash_radius: {item.get_splash_radius()}
-                    on_hit_effect: {item.get_on_hit_effect()}
+                    on_hit_effect: {item.get_on_hit_effect().__dict__}
                     attack:        {item.get_attack()}
                 """
             elif isinstance(item, Accessory):
@@ -304,12 +314,12 @@ class Strategy:
             elif isinstance(item, Clothes):
                 return f"""
                     Clothes:
-                    stats: {item.get_stats()}
+                    stats: {item.get_stats().__dict__}
                 """
             elif isinstance(item, Shoes):
                 return f"""
                     Shoes:
-                    stats: {item.get_stats()}
+                    stats: {item.get_stats().__dict__}
                 """
             elif isinstance(item, Consumable):
                 return f"""
@@ -321,8 +331,10 @@ class Strategy:
                 return f"""
                     Hat:
                     magical_hat_effects: {item.magic_hat_effect()}:
-                    stats:               {item.get_stats()}
+                    stats:               {item.get_stats().__dict__}
                 """
+            else:
+                return str(item)
         except Exception as e:
             self.logger.warn(str(e))
             return str(item)
