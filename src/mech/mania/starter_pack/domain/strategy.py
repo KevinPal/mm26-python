@@ -38,6 +38,10 @@ class Strategy:
 
         last_action, type = self.memory.get_value("last_action", str)
 
+        # print the player's inventory
+        for item in self.my_player.get_inventory():
+            self.logger.warn(print_item(item))
+
         if last_action is not None and last_action == "PICKUP":
             self.logger.info("Last action was picking up, equipping picked up object")
             self.memory.set_value("last_action", "EQUIP")
