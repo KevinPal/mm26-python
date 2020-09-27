@@ -39,7 +39,10 @@ class Strategy:
         last_action, type = self.memory.get_value("last_action", str)
         try:
             last_index, type = self.memory.get_value("last_index", str)
-            last_index = int(last_index)
+            if last_index == "":
+                last_index = -1
+            else:
+                last_index = int(last_index)
 
             # print the player's inventory
             self.logger.info(f"Player has {len(self.my_player.get_inventory())} items")
@@ -137,6 +140,8 @@ class Strategy:
                         if my_obj is None:
                             self.logger.warn(f"Item was unknown type: {str(type(item))}")
                             continue
+                        else:
+                            self.logger.warn(f"I am wearing: {self.print_item(item)}")
                     except Exception as e:
                         self.logger.warn(f"Error in parsing item type: {str(e)}")
                         continue
