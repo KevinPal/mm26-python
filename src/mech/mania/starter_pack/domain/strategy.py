@@ -3,6 +3,7 @@ import math
 
 from mech.mania.starter_pack.domain.model.characters.character_decision import CharacterDecision
 from mech.mania.starter_pack.domain.model.characters.position import Position
+from mech.mania.starter_pack.domain.model.characters.character import Character
 from mech.mania.starter_pack.domain.model.characters.player import Player
 from mech.mania.starter_pack.domain.model.game_state import GameState
 from mech.mania.starter_pack.domain.api import API
@@ -89,21 +90,20 @@ class Strategy:
         # monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
         monster_list = self.crappy_find_enemies_by_xp(self.curr_pos, name_filter="")
 
-        print_counter = 0
         for print_mon in monster_list:
-            self.logger.info("%s: dist: %d, xp: %.3f" %
+            self.logger.info("%s: dist: %d, xp: %.3f, health: %d/%d" %
                              (print_mon.get_name(),
                               print_mon.get_position().manhattan_distance(self.curr_pos),
-                              self.calc_xp_turn(print_mon)
+                              self.calc_xp_turn(print_mon),
+                              print_mon.get_current_health(),
+                              print_mon.get_max_health()
                               )
                              )
-            print_counter += 1
-            if print_counter > 5:
-                break
 
         close_mon = monster_list[0]
         dist = self.curr_pos.manhattan_distance(close_mon.get_position())
-        # self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
+        self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
+        self.calc_xp_turn(close_mon, verbose=True)
 
         decision = None
 
@@ -173,15 +173,15 @@ class Strategy:
 
                     try:
                         # List of stats to care about in order
-                        functions = ["get_percent_experience_change",
+                        functions = ["get_flat_experience_change",
+                                     "get_flat_speed_change",
                                      "get_flat_attack_change",
                                      "get_percent_attack_change",
-                                     "get_flat_speed_change",
                                      "get_percent_speed_change",
                                      "get_flat_health_change",
                                      "get_percent_health_change",
+                                     "get_percent_experience_change",
                                      "get_flat_defense_change",
-                                     "get_flat_experience_change",
                                      "get_percent_defense_change",
                                      "get_flat_regen_per_turn"]
 
@@ -285,25 +285,77 @@ class Strategy:
 
         return new_pos
 
-    def calc_xp(self, monster):
+    def get_exp_change(self, player):
+        flat_change = 0
+        percent_change = 0
+
+        if player.get_hat() is not None:
+            flat_change += player.get_hat().get_stats().get_flat_experience_change()
+            percent_change += player.get_hat().get_stats().get_percent_experience_change()
+
+        if player.get_accessory() is not None:
+            flat_change += player.get_accessory().get_stats().get_flat_experience_change()
+            percent_change += player.get_accessory().get_stats().get_percent_experience_change()
+
+        if player.get_clothes() is not None:
+            flat_change += player.get_clothes().get_stats().get_flat_experience_change()
+            percent_change += player.get_clothes().get_stats().get_percent_experience_change()
+
+        if player.get_shoes() is not None:
+            flat_change += player.get_shoes().get_stats().get_flat_experience_change()
+            percent_change += player.get_shoes().get_stats().get_percent_experience_change()
+
+        if player.get_weapon() is not None:
+            flat_change += player.get_weapon().get_stats().get_flat_experience_change()
+            percent_change += player.get_weapon().get_stats().get_percent_experience_change()
+
+            if (player.has_magic_effect("XP_BOOST")):  # TODO
+                flat_change += player.get_weapon().get_stats().get_flat_experience_change() * 0.5
+
+        for active_effect in player.active_effects:
+            flat_change += active_effect[0].get_flat_experience_change()
+            percent_change += active_effect[0].get_percent_experience_change()
+
+        return flat_change, percent_change
+
+    def calc_xp(self, monster, verbose=False):
         player_level = self.my_player.get_level()
         level_difference = abs(player_level - monster.get_level())
         exp_multiplier = player_level / (player_level + level_difference)
         exp_gain = 10 * (monster.get_level() * exp_multiplier)
-        return exp_gain
 
-    def calc_xp_turn(self, monster):
-        xp = self.calc_xp(monster)
-        my_dmg = self.my_player.get_attack()  # TODO account for def
-        mon_dmg = monster.get_attack()
+        flat, percent = self.get_exp_change(self.my_player)
+        if verbose:
+            self.logger.info(f"Flat gain: {flat}, percent gain: {percent}")
+
+        return (exp_gain + flat) * (1 + percent)
+
+    def calc_xp_turn(self, monster, verbose=False):
+        xp = self.calc_xp(monster, verbose)
+        my_dmg = self.calc_dmg(self.my_player)
+        mon_dmg = self.calc_dmg(monster)
 
         turns_to_kill = int(math.ceil(monster.get_current_health() / my_dmg))
         turns_to_die = int(math.floor(self.my_player.get_current_health() / mon_dmg))
         turns_to_move = self.my_player.get_position().manhattan_distance(monster.get_position())
         turns_from_spawn = self.my_player.get_spawn_point().manhattan_distance(monster.get_position())
+        num_deaths = int(math.ceil(turns_to_kill / turns_to_die))
 
         # Need to move to monster, kill it, and walk back from spawn every time we die
-        total_turns = turns_to_move + turns_to_kill + max(turns_to_die - 1, 0) * turns_from_spawn
+        total_turns = turns_to_move + turns_to_kill + max(num_deaths - 1, 0) * turns_from_spawn
+        if(verbose):
+            self.logger.info(f'''
+                                my_dmg: {my_dmg}
+                                mon_dmg: {mon_dmg}
+                                turns_to_kill: {turns_to_kill}
+                                turns_to_die: {turns_to_die}
+                                turns_to_move: {turns_to_move}
+                                num_deaths: {num_deaths}
+                                turns_from_spawn: {turns_from_spawn}
+                                total_turns: {total_turns}
+                                xp: {xp}
+
+                            ''')
 
         return xp / total_turns
 
@@ -323,11 +375,16 @@ class Strategy:
             name_filter
         )
 
+    def calc_dmg(self, char):
+        weapon_dmg = char.get_weapon().get_attack()
+        attack = char.get_attack()
+        return weapon_dmg * (0.25 + attack / 100)
+
     def crappy_find_enemies_by_xp(self, pos, name_filter=""):
 
         return self.crappy_find_enemies_by_lambda(
             pos,
-            lambda mon: -self.calc_xp_turn(mon),
+            lambda mon: -self.calc_xp_turn(mon, verbose=True),
             name_filter
         )
 
