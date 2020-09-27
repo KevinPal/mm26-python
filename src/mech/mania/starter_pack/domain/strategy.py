@@ -89,7 +89,7 @@ class Strategy:
         # if weapon has better attack
         for pos in pos_with_items:
             items = self.game_state.get_board(self.curr_pos.get_board_id()).get_tile_at(pos).get_items()
-            for item in items:
+            for tile_item_index, item in enumerate(items):
                 self.logger.info(f"I can seee an item {item}")
                 if isinstance(item, Weapon):
                     if item.get_attack() > weapon.get_attack():
@@ -99,7 +99,7 @@ class Strategy:
                             return CharacterDecision(
                                 decision_type="PICKUP",
                                 action_position=None,
-                                action_index=0
+                                action_index=tile_item_index
                             )
                         else:
                             self.logger.info(f"Found weapon with attack {item.get_attack()}, approaching")
