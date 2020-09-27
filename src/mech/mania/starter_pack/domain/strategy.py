@@ -42,35 +42,11 @@ class Strategy:
                 action_index=0  # self.my_player.get_free_inventory_index()
             )
 
-        weapon = self.my_player.get_weapon()
         # deciding to pick up item
         try:
-            pos_with_items = self.find_positions_with_items_in_range(self.curr_pos, 10)
-            self.logger.info(f"number of item drops i see is {len(pos_with_items)}")
-
-            # if weapon has better attack
-            for pos in pos_with_items:
-                items = self.game_state.get_board(self.curr_pos.get_board_id()).get_tile_at(pos).get_items()
-                for item in items:
-                    self.logger.info(f"I can seee an item {item}")
-                    if isinstance(item, Weapon):
-                        if item.get_attack() > weapon.get_attack():
-                            if pos.get_x() == self.curr_pos.get_x() and pos.get_y() == self.curr_pos.get_y():
-                                self.logger.info(f"Standing on weapon with attack {item.get_attack()}, picking up")
-                                self.memory.set_value("last_action", "PICKUP")
-                                return CharacterDecision(
-                                    decision_type="PICKUP",
-                                    action_position=None,
-                                    action_index=0
-                                )
-                            else:
-                                self.logger.info(f"Found weapon with attack {item.get_attack()}, approaching")
-                                self.memory.set_value("last_action", "MOVE")
-                                return CharacterDecision(
-                                    decision_type="MOVE",
-                                    action_position=self.find_position_to_move(self.my_player, pos),
-                                    action_index=0
-                                )
+            decision = self.scan_for_loot()
+            if not decision == None:
+                return decision
         except Exception as e:
             self.logger.warn(str(e))
 
@@ -81,6 +57,7 @@ class Strategy:
 
         decision = None
 
+        weapon = self.my_player.get_weapon()
 
         self.logger.warn("Weapon range: %d, attack %d" % (weapon.get_range(), weapon.get_attack()))
 
@@ -103,6 +80,36 @@ class Strategy:
             self.logger.warn("Attacking %s" % close_mon.get_name())
 
         return decision
+
+    def scan_for_loot(self):
+        weapon = self.my_player.get_weapon()
+        pos_with_items = self.find_positions_with_items_in_range(self.curr_pos, 10)
+        self.logger.info(f"number of item drops i see is {len(pos_with_items)}")
+
+        # if weapon has better attack
+        for pos in pos_with_items:
+            items = self.game_state.get_board(self.curr_pos.get_board_id()).get_tile_at(pos).get_items()
+            for item in items:
+                self.logger.info(f"I can seee an item {item}")
+                if isinstance(item, Weapon):
+                    if item.get_attack() > weapon.get_attack():
+                        if pos.get_x() == self.curr_pos.get_x() and pos.get_y() == self.curr_pos.get_y():
+                            self.logger.info(f"Standing on weapon with attack {item.get_attack()}, picking up")
+                            self.memory.set_value("last_action", "PICKUP")
+                            return CharacterDecision(
+                                decision_type="PICKUP",
+                                action_position=None,
+                                action_index=0
+                            )
+                        else:
+                            self.logger.info(f"Found weapon with attack {item.get_attack()}, approaching")
+                            self.memory.set_value("last_action", "MOVE")
+                            return CharacterDecision(
+                                decision_type="MOVE",
+                                action_position=self.find_position_to_move(self.my_player, pos),
+                                action_index=0
+                            )
+        return None
 
     def find_positions_with_items_in_range(self, pos, ran):
         positions = []
