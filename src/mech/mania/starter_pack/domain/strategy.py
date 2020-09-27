@@ -362,7 +362,7 @@ class Strategy:
             elif isinstance(item, Accessory):
                 return f"""
                     Accessory:
-                    magical_effect: {item.get_magic_effect()}
+                    magical_effect: {Accessory.magic_effect_types[item.get_magic_effect()]}
                 """
             elif isinstance(item, Clothes):
                 return f"""
@@ -383,8 +383,8 @@ class Strategy:
             elif isinstance(item, Hat):
                 return f"""
                     Hat:
-                    magical_hat_effects: {item.magic_hat_effect()}:
-                    stats:               {item.get_stats().__dict__}
+                    magical_effect: {Hat.magic_effect_types[item.get_magic_effect()]}
+                    stats:          {item.get_stats().__dict__}
                 """
             else:
                 return str(item)
