@@ -1,4 +1,5 @@
 import logging
+import math
 
 from mech.mania.starter_pack.domain.model.characters.character_decision import CharacterDecision
 from mech.mania.starter_pack.domain.model.characters.position import Position
@@ -29,7 +30,7 @@ class Strategy:
         """
         self.api = API(game_state, player_name)
         self.my_player = game_state.get_all_players()[player_name]
-        #self.board = game_state.get_pvp_board()
+        # self.board = game_state.get_pvp_board()
         self.curr_pos = self.my_player.get_position()
         self.game_state = game_state
 
@@ -38,7 +39,7 @@ class Strategy:
         self.logger.info(f"Max Health: {self.my_player.get_max_health()}")
 
         try:
-            self.logger.info(f" I am wearing ")
+            self.logger.info(" I am wearing ")
             self.logger.info(f"my hat is {self.print_item(self.my_player.get_hat())}")
             self.logger.info(f"my asc is {self.print_item(self.my_player.get_accessory())}")
             self.logger.info(f"my clo is {self.print_item(self.my_player.get_clothes())}")
@@ -85,7 +86,17 @@ class Strategy:
         except Exception as e:
             self.logger.warn(f"Error in mem parse {str(e)}")
 
-        monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
+        # monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
+        monster_list = self.crappy_find_enemies_by_xp(self.curr_pos, name_filter="")
+
+        for print_mon in monster_list:
+            print("%s: dist: %d, xp: %.3f" %
+                  (print_mon.get_name(),
+                   print_mon.get_position().manhattan_distance(self.curr_pos),
+                   self.calc_xp_turn(print_mon)
+                   )
+                  )
+
         close_mon = monster_list[0]
         dist = self.curr_pos.manhattan_distance(close_mon.get_position())
         self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
@@ -252,14 +263,6 @@ class Strategy:
         )
         return decision
 
-    def crappy_find_enemies_by_distance(self, pos, name_filter=""):
-        curr_board = self.curr_pos.get_board_id()
-        monsters = self.game_state.get_monsters_on_board(curr_board)
-        distances = [mon for mon in monsters if not mon.is_dead() and name_filter in mon.get_name().lower()]
-
-        distances.sort(key=lambda mon: pos.manhattan_distance(mon.get_position()))
-        return distances
-
     def crappy_find_position_to_move(self, player, destination) -> Position:
         x_dist = destination.x - player.get_position().x
         y_dist = destination.y - player.get_position().y
@@ -277,6 +280,52 @@ class Strategy:
         new_pos = self.curr_pos.create(player.get_position().x + dx, player.get_position().y + dy, self.curr_pos.get_board_id())
 
         return new_pos
+
+    def calc_xp(self, monster):
+        player_level = self.my_player.get_level()
+        level_difference = abs(player_level - monster.get_level())
+        exp_multiplier = player_level / (player_level + level_difference)
+        exp_gain = 10 * (monster.get_level() * exp_multiplier)
+        return exp_gain
+
+    def calc_xp_turn(self, monster):
+        xp = self.calc_xp(monster)
+        my_dmg = self.my_player.get_attack()  # TODO account for def
+        mon_dmg = monster.get_attack()
+
+        turns_to_kill = int(math.ceil(monster.get_current_health() / my_dmg))
+        turns_to_die = int(math.floor(self.my_player.get_current_health() / mon_dmg))
+        turns_to_move = self.my_player.get_position().manhattan_distance(monster.get_position())
+        turns_from_spawn = self.my_player.get_spawn_point().manhattan_distance(monster.get_position())
+
+        # Need to move to monster, kill it, and walk back from spawn every time we die
+        total_turns = turns_to_move + turns_to_kill + max(turns_to_die - 1, 0) * turns_from_spawn
+
+        return xp / total_turns
+
+    def crappy_find_enemies_by_lambda(self, pos, func, name_filter=""):
+        curr_board = self.curr_pos.get_board_id()
+        monsters = self.game_state.get_monsters_on_board(curr_board)
+        distances = [mon for mon in monsters if not mon.is_dead() and name_filter.lower() in mon.get_name().lower()]
+
+        distances.sort(key=func)
+        return distances
+
+    def crappy_find_enemies_by_distance(self, pos, name_filter=""):
+
+        return self.crappy_find_enemies_by_lambda(
+            pos,
+            lambda mon: pos.manhattan_distance(mon.get_position()),
+            name_filter
+        )
+
+    def crappy_find_enemies_by_xp(self, pos, name_filter=""):
+
+        return self.crappy_find_enemies_by_lambda(
+            pos,
+            lambda mon: -self.calc_xp_turn(mon),
+            name_filter
+        )
 
     # feel free to write as many helper functions as you need!
     def find_position_to_move(self, player: Player, destination: Position) -> Position:
