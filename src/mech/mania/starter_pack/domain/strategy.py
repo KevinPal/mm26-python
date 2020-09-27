@@ -173,9 +173,9 @@ class Strategy:
 
                     try:
                         # List of stats to care about in order
-                        functions = ["get_flat_experience_change",
+                        functions = ["get_flat_attack_change",
+                                     "get_flat_experience_change",
                                      "get_flat_speed_change",
-                                     "get_flat_attack_change",
                                      "get_percent_attack_change",
                                      "get_percent_speed_change",
                                      "get_flat_health_change",
@@ -336,7 +336,8 @@ class Strategy:
         mon_dmg = self.calc_dmg(monster)
 
         turns_to_kill = int(math.ceil(monster.get_current_health() / my_dmg))
-        turns_to_die = int(math.floor(self.my_player.get_current_health() / mon_dmg))
+        turns_to_die = max(int(math.floor(self.my_player.get_current_health() / mon_dmg)), 1)
+
         turns_to_move = self.my_player.get_position().manhattan_distance(monster.get_position())
         turns_from_spawn = self.my_player.get_spawn_point().manhattan_distance(monster.get_position())
         num_deaths = int(math.ceil(turns_to_kill / turns_to_die))
@@ -378,7 +379,7 @@ class Strategy:
     def calc_dmg(self, char):
         weapon_dmg = char.get_weapon().get_attack()
         attack = char.get_attack()
-        return weapon_dmg * (0.25 + attack / 100)
+        return weapon_dmg * (0.75 + attack / 100)
 
     def crappy_find_enemies_by_xp(self, pos, name_filter=""):
 
