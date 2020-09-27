@@ -10,12 +10,8 @@ from mech.mania.starter_pack.domain.model.items.accessory import Accessory
 from mech.mania.starter_pack.domain.model.items.clothes import Clothes
 from mech.mania.starter_pack.domain.model.items.consumable import Consumable
 from mech.mania.starter_pack.domain.model.items.hat import Hat
-from mech.mania.starter_pack.domain.model.items.shoes import shoes
-from mech.mania.starter_pack.domain.model.items.weapon import Weapon
-from mech.mania.starter_pack.domain.model.items.accessory import Accessory
-from mech.mania.starter_pack.domain.model.items.clothes import Clothes
-from mech.mania.starter_pack.domain.model.items.hat import Hat
 from mech.mania.starter_pack.domain.model.items.shoes import Shoes
+from mech.mania.starter_pack.domain.model.items.weapon import Weapon
 
 
 class Strategy:
@@ -23,7 +19,7 @@ class Strategy:
         self.memory = memory
         self.logger = logging.getLogger('strategy')
         self.logger.setLevel(logging.DEBUG)
-        logging.basicConfig(level = logging.INFO)
+        logging.basicConfig(level=logging.INFO)
 
     def make_decision(self, player_name: str, game_state: GameState) -> CharacterDecision:
         """
@@ -41,27 +37,40 @@ class Strategy:
         self.logger.info(f"Currently at position: ({self.curr_pos.x},{self.curr_pos.y}) on board '{self.curr_pos.board_id}'")
 
         last_action, type = self.memory.get_value("last_action", str)
-
-        # print the player's inventory
-        for item in self.my_player.get_inventory():
-            self.logger.warn(print_item(item))
-
-        if last_action is not None and last_action == "PICKUP":
-            self.logger.info("Last action was picking up, equipping picked up object")
-            self.memory.set_value("last_action", "EQUIP")
-            return CharacterDecision(
-                decision_type="EQUIP",
-                action_position=None,
-                action_index=0  # self.my_player.get_free_inventory_index()
-            )
-
-        # deciding to pick up item
         try:
+            last_index, type = self.memory.get_value("last_index", str)
+            last_index = int(last_index)
+
+            # print the player's inventory
+            self.logger.info(f"Player has {len(self.my_player.get_inventory())} items")
+            for item in self.my_player.get_inventory():
+                self.logger.warn(self.print_item(item))
+
+            # After pickup, equip the item
+            if last_action is not None and last_action == "PICKUP":
+                self.logger.info(f"Last action was picking up, equipping picked up object at index {last_index}")
+                self.memory.set_value("last_action", "EQUIP")
+                return CharacterDecision(
+                    decision_type="EQUIP",
+                    action_position=None,
+                    action_index=last_index
+                )
+            # Drop old object
+            if last_action is not None and last_action == "EQUIP":
+                self.logger.info(f"Last action was equip, Dropping picked up object at index {last_index}")
+                self.memory.set_value("last_action", "DROP")
+                return CharacterDecision(
+                    decision_type="DROP",
+                    action_position=None,
+                    action_index=last_index
+                )
+
+            # deciding to pick up item
             decision = self.scan_for_loot()
-            if not decision == None:
+            if decision is not None:
                 return decision
         except Exception as e:
-            self.logger.warn(str(e))
+            self.logger.warn(f"Error in mem parse {str(e)}")
 
         monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
         close_mon = monster_list[0]
@@ -127,10 +136,10 @@ class Strategy:
 
                         if my_obj is None:
                             self.logger.warn(f"Item was unknown type: {str(type(item))}")
-                            return None
+                            continue
                     except Exception as e:
                         self.logger.warn(f"Error in parsing item type: {str(e)}")
-                        return None
+                        continue
 
                     try:
                         # List of stats to care about in order
@@ -175,6 +184,7 @@ class Strategy:
                                 break
 
                         if should_take:
+                            self.logger.info(f"Picking up {self.print_item(item)}, had {self.print_item(my_obj)}")
                             return self.move_pickup(
                                 pos,
                                 tile_item_index,
@@ -191,6 +201,9 @@ class Strategy:
             # self.logger.info()
             self.logger.info(pick_log)
             self.memory.set_value("last_action", "PICKUP")
+            inv_index = len(self.my_player.get_inventory())
+            self.memory.set_value("last_index", str(inv_index))
+            self.logger.warn(f"Setting index to {inv_index}")
             return CharacterDecision(
                 decision_type="PICKUP",
                 action_position=None,
@@ -205,7 +218,6 @@ class Strategy:
                 action_position=self.find_position_to_move(self.my_player, pos),
                 action_index=0
             )
-
 
     def find_positions_with_items_in_range(self, pos, ran):
         positions = []
