@@ -89,17 +89,21 @@ class Strategy:
         # monster_list = self.crappy_find_enemies_by_distance(self.curr_pos, name_filter="slime")
         monster_list = self.crappy_find_enemies_by_xp(self.curr_pos, name_filter="")
 
+        print_counter = 0
         for print_mon in monster_list:
-            print("%s: dist: %d, xp: %.3f" %
-                  (print_mon.get_name(),
-                   print_mon.get_position().manhattan_distance(self.curr_pos),
-                   self.calc_xp_turn(print_mon)
-                   )
-                  )
+            self.logger.info("%s: dist: %d, xp: %.3f" %
+                             (print_mon.get_name(),
+                              print_mon.get_position().manhattan_distance(self.curr_pos),
+                              self.calc_xp_turn(print_mon)
+                              )
+                             )
+            print_counter += 1
+            if print_counter > 5:
+                break
 
         close_mon = monster_list[0]
         dist = self.curr_pos.manhattan_distance(close_mon.get_position())
-        self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
+        # self.logger.warn("Closest monster is %s at %d" % (close_mon.get_name(), dist))
 
         decision = None
 
@@ -124,7 +128,7 @@ class Strategy:
                 action_index=0
             )
             self.logger.warn("Attacking %s" % close_mon.get_name())
-
+        self.logger.warn("========================")
         return decision
 
     def scan_for_loot(self):
@@ -162,15 +166,14 @@ class Strategy:
                             self.logger.warn(f"Item was unknown type: {str(type(item))}")
                             continue
                         else:
-                            self.logger.warn(f"I am wearing: {self.print_item(item)}")
+                            self.logger.warn(f"I am wearing: {self.print_item(my_obj)}")
                     except Exception as e:
                         self.logger.warn(f"Error in parsing item type: {str(e)}")
                         continue
 
                     try:
                         # List of stats to care about in order
-                        functions = ["get_flat_experience_change",
-                                     "get_percent_experience_change",
+                        functions = ["get_percent_experience_change",
                                      "get_flat_attack_change",
                                      "get_percent_attack_change",
                                      "get_flat_speed_change",
@@ -178,6 +181,7 @@ class Strategy:
                                      "get_flat_health_change",
                                      "get_percent_health_change",
                                      "get_flat_defense_change",
+                                     "get_flat_experience_change",
                                      "get_percent_defense_change",
                                      "get_flat_regen_per_turn"]
 
